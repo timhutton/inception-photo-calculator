@@ -12,109 +12,144 @@ Your browser does not support the HTML5 canvas tag.</canvas>
 <script>
 
 function lerp(a,b,t) {
-	return [a[0]*(1-t)+b[0]*t,a[1]*(1-t)+b[1]*t];
+    return [a[0]*(1-t)+b[0]*t,a[1]*(1-t)+b[1]*t];
 }
 
 function getBezierPoint(pts,t) {
-	if(pts.length==1) {
-		return pts[0];
-	}
-	var new_pts = [];
-	for(var i=0;i<pts.length-1;i++) {
-		new_pts.push(lerp(pts[i],pts[i+1],t));
-	}
-	return getBezierPoint(new_pts,t);
+    if(pts.length==1) {
+        return pts[0];
+    }
+    var new_pts = [];
+    for(var i=0;i<pts.length-1;i++) {
+        new_pts.push(lerp(pts[i],pts[i+1],t));
+    }
+    return getBezierPoint(new_pts,t);
 }
 
 function drawBezier(pts) {
-	// draw the control mesh
-	ctx.strokeStyle = "rgba(0,0,0,0.3)";
-	ctx.beginPath();
-	ctx.moveTo(pts[0][0],pts[0][1]);
-	for(var i=1;i<npts;i++) {
-		ctx.lineTo(pts[i][0],pts[i][1]);
-	}
-	ctx.stroke();
+    // draw the control mesh
+    ctx.strokeStyle = "rgba(0,0,0,0.3)";
+    ctx.beginPath();
+    ctx.moveTo(pts[0][0],pts[0][1]);
+    for(var i=1;i<npts;i++) {
+        ctx.lineTo(pts[i][0],pts[i][1]);
+    }
+    ctx.stroke();
 
-	// draw the curve
-	ctx.strokeStyle = "rgba(0,0,0,0.9)";
-	ctx.beginPath();
-	ctx.moveTo(pts[0][0],pts[0][1]);
-	for(var t=0;t<1;t+=0.001) {
-		var p = getBezierPoint(pts,t);
-		ctx.lineTo(p[0],p[1]);
-	}
-	ctx.lineTo(pts[npts-1][0],pts[npts-1][1]);
-	ctx.stroke();
-	
-	// draw the waypoints
-	for(var i=0;i<npts;i++) {
-		var t = i / (npts-1);
-		drawDot(getBezierPoint(pts,t));
-	}
+    // draw the curve
+    ctx.strokeStyle = "rgba(0,0,0,0.9)";
+    ctx.beginPath();
+    ctx.moveTo(pts[0][0],pts[0][1]);
+    for(var t=0;t<1;t+=0.001) {
+        var p = getBezierPoint(pts,t);
+        ctx.lineTo(p[0],p[1]);
+    }
+    ctx.lineTo(pts[npts-1][0],pts[npts-1][1]);
+    ctx.stroke();
+
+    // draw the waypoints
+    for(var i=0;i<npts;i++) {
+        var t = i / (npts-1);
+        drawDot(getBezierPoint(pts,t));
+    }
+}
+
+function doLineSegmentsIntersect(a,b,c,d) {
+
+}
+
+function length2(a,b) {
+    return (a[0]-b[0])**2 + (a[1]-b[1])**2;
+}
+
+function intersectBezier(pts,a,b) {
+    // test each line segment in the curve, keep the intersection nearest a
+    ctx.moveTo(pts[0][0],pts[0][1]);
+    for(var t=0;t<1;t+=0.001) {
+        var p = getBezierPoint(pts,t);
+        ctx.lineTo(p[0],p[1]);
+    }
+    ctx.lineTo(pts[npts-1][0],pts[npts-1][1]);
 }
 
 function drawCamera() {
-	ctx.strokeStyle = "rgba(0,0,0,0.9)";
-	ctx.beginPath();
-	ctx.moveTo(camera.x,camera.y);
-	ctx.lineTo(camera.x + camera.vx[0]*camera.f + camera.vy[0]*camera.hh,
-			   camera.y + camera.vx[1]*camera.f + camera.vy[1]*camera.hh);
-	ctx.lineTo(camera.x + camera.vx[0]*camera.f - camera.vy[0]*camera.hh,
-			   camera.y + camera.vx[1]*camera.f - camera.vy[1]*camera.hh);
-	ctx.lineTo(camera.x,camera.y);
-	ctx.stroke();
+    var cp = [camera.x,camera.y];
+    // camera body: triangle
+    ctx.strokeStyle = "rgba(0,0,0,0.9)";
+    ctx.beginPath();
+    ctx.moveTo(camera.x,camera.y);
+    ctx.lineTo(camera.x + camera.vx[0]*camera.f + camera.vy[0]*camera.hh,
+               camera.y + camera.vx[1]*camera.f + camera.vy[1]*camera.hh);
+    ctx.lineTo(camera.x + camera.vx[0]*camera.f - camera.vy[0]*camera.hh,
+               camera.y + camera.vx[1]*camera.f - camera.vy[1]*camera.hh);
+    ctx.lineTo(camera.x,camera.y);
+    ctx.stroke();
+    drawDot(cp);
+
+    // rays
+    ctx.strokeStyle = "rgba(0,0,0,0.2)";
+    ctx.beginPath();
+    var nr = 10;
+    for(var i=0;i<nr;i++) {
+        var h = i * camera.hh * 2 / (nr-1) - camera.hh;
+        var p = [camera.x + 100*(camera.vx[0]*camera.f - camera.vy[0]*h),
+                 camera.y + 100*(camera.vx[1]*camera.f - camera.vy[1]*h)];
+        var ip = intersectBezier(pts,cp,p);
+        ctx.moveTo(camera.x,camera.y);
+        ctx.lineTo(ip[0],ip[1]);
+    }
+    ctx.stroke();
 }
 
 function drawDot(p) {
-	ctx.fillStyle = "rgba(0,0,0,0.9)";
-	ctx.beginPath();
-	ctx.ellipse(p[0],p[1],3,3,0,0,Math.PI*2);
-	ctx.fill();
+    ctx.fillStyle = "rgba(0,0,0,0.9)";
+    ctx.beginPath();
+    ctx.ellipse(p[0],p[1],3,3,0,0,Math.PI*2);
+    ctx.fill();
 }
 
 function draw() {
 
-	// bounding rect
-	ctx.strokeStyle = "rgba(0,0,0,0.3)";
-	ctx.beginPath();
-	ctx.rect(0,0,800,600);
-	ctx.stroke();
-	
-	// draw the distorted landcape
-	ctx.strokeStyle = "rgba(0,0,0,0.3)";
-	ctx.beginPath();
-	for(var i = 0; i < npts; ++i) {
-		var p = pts[i];
-		ctx.rect(p[0]-handle_radius,p[1]-handle_radius,handle_radius*2,handle_radius*2);
-	}
-	ctx.stroke();		
-	drawBezier(pts);
-	
-	// draw the base landscape
-	drawBezier(base_pts);
-	
-	// draw the camera and rays
-	drawCamera();
+    // bounding rect
+    ctx.strokeStyle = "rgba(0,0,0,0.3)";
+    ctx.beginPath();
+    ctx.rect(0,0,800,600);
+    ctx.stroke();
 
-	// draw caption
-	ctx.font="18px Verdana";
-	ctx.fillStyle = "rgba(0,0,0,0.6)";
-	ctx.fillText("Drag the handles to change the landscape", 10, 620);
+    // draw the distorted landcape
+    ctx.strokeStyle = "rgba(0,0,0,0.3)";
+    ctx.beginPath();
+    for(var i = 0; i < npts; ++i) {
+        var p = pts[i];
+        ctx.rect(p[0]-handle_radius,p[1]-handle_radius,handle_radius*2,handle_radius*2);
+    }
+    ctx.stroke();
+    drawBezier(pts);
+
+    // draw the base landscape
+    drawBezier(base_pts);
+
+    // draw the camera and rays
+    drawCamera();
+
+    // draw caption
+    ctx.font="18px Verdana";
+    ctx.fillStyle = "rgba(0,0,0,0.6)";
+    ctx.fillText("Drag the handles to change the landscape", 10, 620);
 }
 
 var ctx = document.getElementById("myCanvas").getContext("2d");
 var npts = 8;
 var base_pts = [];
 var pts = [];
-for(var i=0;i<npts;i++) { 
-	base_pts.push([50+i*700/(npts-1),500]);
-	pts.push([50+i*700/(npts-1),300]);
+for(var i=0;i<npts;i++) {
+    base_pts.push([50+i*700/(npts-1),500]);
+    pts.push([50+i*700/(npts-1),300]);
 }
 pts[0] = [50,50];
 var handle_radius = 10;
 // we define the camera on the distorted landscape
-var camera = { x:700, y:250, vx:[-1,0], vy:[0,1], f:45, hh:20 };
+var camera = { x:750, y:250, vx:[-1,0], vy:[0,1], f:45, hh:20 };
 draw();
 
 </script>

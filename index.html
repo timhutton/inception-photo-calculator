@@ -55,7 +55,7 @@ function drawBezier(pts) {
 }
 
 function doLineSegmentsIntersect(a,b,c,d) {
-
+    // TODO
 }
 
 function length2(a,b) {
@@ -64,38 +64,44 @@ function length2(a,b) {
 
 function intersectBezier(pts,a,b) {
     // test each line segment in the curve, keep the intersection nearest a
-    ctx.moveTo(pts[0][0],pts[0][1]);
+    // TODO
+    return b;
+    /*ctx.moveTo(pts[0][0],pts[0][1]);
     for(var t=0;t<1;t+=0.001) {
         var p = getBezierPoint(pts,t);
         ctx.lineTo(p[0],p[1]);
     }
-    ctx.lineTo(pts[npts-1][0],pts[npts-1][1]);
+    ctx.lineTo(pts[npts-1][0],pts[npts-1][1]);*/
 }
 
-function drawCamera() {
-    var cp = [camera.x,camera.y];
+function drawCameraBody(c) {
     // camera body: triangle
     ctx.strokeStyle = "rgba(0,0,0,0.9)";
     ctx.beginPath();
-    ctx.moveTo(camera.x,camera.y);
-    ctx.lineTo(camera.x + camera.vx[0]*camera.f + camera.vy[0]*camera.hh,
-               camera.y + camera.vx[1]*camera.f + camera.vy[1]*camera.hh);
-    ctx.lineTo(camera.x + camera.vx[0]*camera.f - camera.vy[0]*camera.hh,
-               camera.y + camera.vx[1]*camera.f - camera.vy[1]*camera.hh);
-    ctx.lineTo(camera.x,camera.y);
+    ctx.moveTo(c.x,c.y);
+    ctx.lineTo(c.x + c.vx[0]*c.f + c.vy[0]*c.hh,
+               c.y + c.vx[1]*c.f + c.vy[1]*c.hh);
+    ctx.lineTo(c.x + c.vx[0]*c.f - c.vy[0]*c.hh,
+               c.y + c.vx[1]*c.f - c.vy[1]*c.hh);
+    ctx.lineTo(c.x,c.y);
     ctx.stroke();
-    drawDot(cp);
+    drawDot([c.x,c.y]);
+}
+
+function drawCamera(c) {
+    drawCameraBody(c);
 
     // rays
+    var cp = [c.x,c.y];
     ctx.strokeStyle = "rgba(0,0,0,0.2)";
     ctx.beginPath();
     var nr = 10;
     for(var i=0;i<nr;i++) {
-        var h = i * camera.hh * 2 / (nr-1) - camera.hh;
-        var p = [camera.x + 100*(camera.vx[0]*camera.f - camera.vy[0]*h),
-                 camera.y + 100*(camera.vx[1]*camera.f - camera.vy[1]*h)];
+        var h = i * c.hh * 2 / (nr-1) - c.hh;
+        var p = [c.x + 100*(c.vx[0]*c.f - c.vy[0]*h),
+                 c.y + 100*(c.vx[1]*c.f - c.vy[1]*h)];
         var ip = intersectBezier(pts,cp,p);
-        ctx.moveTo(camera.x,camera.y);
+        ctx.moveTo(c.x,c.y);
         ctx.lineTo(ip[0],ip[1]);
     }
     ctx.stroke();
@@ -104,8 +110,15 @@ function drawCamera() {
 function drawDot(p) {
     ctx.fillStyle = "rgba(0,0,0,0.9)";
     ctx.beginPath();
-    ctx.ellipse(p[0],p[1],3,3,0,0,Math.PI*2);
+    ctx.ellipse(p[0],p[1],dot_radius,dot_radius,0,0,Math.PI*2);
     ctx.fill();
+}
+
+function drawHandle(p) {
+    ctx.strokeStyle = "rgba(0,0,0,0.3)";
+    ctx.beginPath();
+    ctx.rect(p[0]-handle_radius,p[1]-handle_radius,handle_radius*2,handle_radius*2);
+    ctx.stroke();
 }
 
 function draw() {
@@ -130,7 +143,7 @@ function draw() {
     drawBezier(base_pts);
 
     // draw the camera and rays
-    drawCamera();
+    drawCamera(camera);
 
     // draw caption
     ctx.font="18px Verdana";
@@ -147,7 +160,8 @@ for(var i=0;i<npts;i++) {
     pts.push([50+i*700/(npts-1),300]);
 }
 pts[0] = [50,50];
-var handle_radius = 10;
+var dot_radius = 2;
+var handle_radius = 6;
 // we define the camera on the distorted landscape
 var camera = { x:750, y:250, vx:[-1,0], vy:[0,1], f:45, hh:20 };
 draw();

@@ -11,8 +11,20 @@ Your browser does not support the HTML5 canvas tag.</canvas>
 
 <script>
 
+function add(a,b) {
+    return { x:a.x+b.x, y:a.y+b.y };
+}
+
+function sub(a,b) {
+    return { x:a.x-b.x, y:a.y-b.y };
+}
+
+function mul(p,f) {
+    return { x:p.x*f, y:p.y*f };
+}
+
 function lerp(a,b,t) {
-    return [a[0]*(1-t)+b[0]*t,a[1]*(1-t)+b[1]*t];
+    return add(mul(a,1-t),mul(b,t));
 }
 
 function getBezierPoint(pts,t) {
@@ -30,21 +42,21 @@ function drawBezier(pts) {
     // draw the control mesh
     ctx.strokeStyle = "rgba(0,0,0,0.3)";
     ctx.beginPath();
-    ctx.moveTo(pts[0][0],pts[0][1]);
+    ctx.moveTo(pts[0].x,pts[0].y);
     for(var i=1;i<npts;i++) {
-        ctx.lineTo(pts[i][0],pts[i][1]);
+        ctx.lineTo(pts[i].x,pts[i].y);
     }
     ctx.stroke();
 
     // draw the curve
     ctx.strokeStyle = "rgba(0,0,0,0.9)";
     ctx.beginPath();
-    ctx.moveTo(pts[0][0],pts[0][1]);
+    ctx.moveTo(pts[0].x,pts[0].y);
     for(var t=0;t<1;t+=0.001) {
         var p = getBezierPoint(pts,t);
-        ctx.lineTo(p[0],p[1]);
+        ctx.lineTo(p.x,p.y);
     }
-    ctx.lineTo(pts[npts-1][0],pts[npts-1][1]);
+    ctx.lineTo(pts[npts-1].x,pts[npts-1].y);
     ctx.stroke();
 
     // draw the waypoints
@@ -54,12 +66,43 @@ function drawBezier(pts) {
     }
 }
 
-function doLineSegmentsIntersect(a,b,c,d) {
-    // TODO
+function lineSegmentsIntersection(s1,s2) {
+    var cr = lineWithLineIntersection( s1.p1, sub( s1.p2, s1.p1 ), s2.p1, sub( s2.p2, s2.p1 ) );
+    //if( !cr.test || cr.u1 < 0 || cr.u1 > 1 || cr.u2 < 0 || cr.u2 > 1 ) return { test:false };
+    if( !cr.test || cr.u1 < -epsilon || cr.u1 > 1+epsilon || cr.u2 < -epsilon || cr.u2 > 1+epsilon ) return { test:false };
+    var p = lerp( s1.p1, s1.p2, cr.u1 );
+    return { test:true, point:p };
+}
+
+function lineSegmentWithLineIntersection( s, p2, v2 ) {
+    var cr = lineWithLineIntersection( s.p1, sub( s.p2, s.p1 ), p2, v2 );
+    //if( !cr.test || cr.u1 < 0 || cr.u1 > 1 ) return { test:false };
+    if( !cr.test || cr.u1 < -epsilon || cr.u1 > 1+epsilon ) return { test:false };
+    var p = lerp( s.p1, s.p2, cr.u1 );
+    return { test:true, point:p };
+}
+
+function lineWithLineIntersection( u0, v0, u1, v1 ) {
+    // http://stackoverflow.com/a/4977569/126823
+    var x00 = u0.x;
+    var y00 = u0.y;
+    var x10 = u1.x;
+    var y10 = u1.y;
+    var x01 = v0.x;
+    var y01 = v0.y;
+    var x11 = v1.x;
+    var y11 = v1.y;
+    var det = x11 * y01 - x01 * y11;
+    if( Math.abs( det ) < epsilon ) {
+        return { test:false }; // lines parallel or colinear
+    }
+    var t = -(-(x00-x10)*y11 + (y00-y10)*x11 ) / det;    // ip = u0 + t*v0
+    var s =  ( (x00-x10)*y01 - (y00-y10)*x01 ) / det;    // ip = u1 + s*v1
+    return { test:true, u1:t, u2:s };
 }
 
 function length2(a,b) {
-    return (a[0]-b[0])**2 + (a[1]-b[1])**2;
+    return (a.x-b.x)**2 + (a.y-b.y)**2;
 }
 
 function intersectBezier(pts,a,b) {
@@ -79,30 +122,28 @@ function drawCameraBody(c) {
     ctx.strokeStyle = "rgba(0,0,0,0.9)";
     ctx.beginPath();
     ctx.moveTo(c.x,c.y);
-    ctx.lineTo(c.x + c.vx[0]*c.f + c.vy[0]*c.hh,
-               c.y + c.vx[1]*c.f + c.vy[1]*c.hh);
-    ctx.lineTo(c.x + c.vx[0]*c.f - c.vy[0]*c.hh,
-               c.y + c.vx[1]*c.f - c.vy[1]*c.hh);
+    var p1 = add(add(c,mul(c.vx,c.f)),mul(c.vy,c.hh));
+    var p2 = sub(add(c,mul(c.vx,c.f)),mul(c.vy,c.hh));
+    ctx.lineTo(p1.x,p1.y);
+    ctx.lineTo(p2.x,p2.y);
     ctx.lineTo(c.x,c.y);
     ctx.stroke();
-    drawDot([c.x,c.y]);
+    drawDot(c);
 }
 
-function drawCamera(c) {
+function drawBaseCamera(c) {
     drawCameraBody(c);
 
     // rays
-    var cp = [c.x,c.y];
     ctx.strokeStyle = "rgba(0,0,0,0.2)";
     ctx.beginPath();
     var nr = 10;
     for(var i=0;i<nr;i++) {
         var h = i * c.hh * 2 / (nr-1) - c.hh;
-        var p = [c.x + 100*(c.vx[0]*c.f - c.vy[0]*h),
-                 c.y + 100*(c.vx[1]*c.f - c.vy[1]*h)];
-        var ip = intersectBezier(pts,cp,p);
+        var p = add(c,mul(sub(mul(c.vx,c.f),mul(c.vy,h)),100));
+        var ip = intersectBezier(pts,c,p);
         ctx.moveTo(c.x,c.y);
-        ctx.lineTo(ip[0],ip[1]);
+        ctx.lineTo(ip.x,ip.y);
     }
     ctx.stroke();
 }
@@ -110,14 +151,14 @@ function drawCamera(c) {
 function drawDot(p) {
     ctx.fillStyle = "rgba(0,0,0,0.9)";
     ctx.beginPath();
-    ctx.ellipse(p[0],p[1],dot_radius,dot_radius,0,0,Math.PI*2);
+    ctx.ellipse(p.x,p.y,dot_radius,dot_radius,0,0,Math.PI*2);
     ctx.fill();
 }
 
 function drawHandle(p) {
     ctx.strokeStyle = "rgba(0,0,0,0.3)";
     ctx.beginPath();
-    ctx.rect(p[0]-handle_radius,p[1]-handle_radius,handle_radius*2,handle_radius*2);
+    ctx.rect(p.x-handle_radius,p.y-handle_radius,handle_radius*2,handle_radius*2);
     ctx.stroke();
 }
 
@@ -130,20 +171,16 @@ function draw() {
     ctx.stroke();
 
     // draw the distorted landcape
-    ctx.strokeStyle = "rgba(0,0,0,0.3)";
-    ctx.beginPath();
-    for(var i = 0; i < npts; ++i) {
-        var p = pts[i];
-        ctx.rect(p[0]-handle_radius,p[1]-handle_radius,handle_radius*2,handle_radius*2);
-    }
-    ctx.stroke();
     drawBezier(pts);
+    for(var i = 0; i < npts; ++i) {
+        drawHandle( pts[i] );
+    }
 
     // draw the base landscape
     drawBezier(base_pts);
 
     // draw the camera and rays
-    drawCamera(camera);
+    drawBaseCamera(camera);
 
     // draw caption
     ctx.font="18px Verdana";
@@ -156,14 +193,15 @@ var npts = 8;
 var base_pts = [];
 var pts = [];
 for(var i=0;i<npts;i++) {
-    base_pts.push([50+i*700/(npts-1),500]);
-    pts.push([50+i*700/(npts-1),300]);
+    base_pts.push( { x:50+i*700/(npts-1), y:500 } );
+    pts.push(      { x:50+i*700/(npts-1), y:300 } );
 }
-pts[0] = [50,50];
+pts[0] = { x:50, y:50 };
 var dot_radius = 2;
 var handle_radius = 6;
 // we define the camera on the distorted landscape
-var camera = { x:750, y:250, vx:[-1,0], vy:[0,1], f:45, hh:20 };
+var camera = { x:750, y:250, vx:{x:-1,y:0}, vy:{x:0,y:1}, f:45, hh:20 };
+var epsilon = 1E-6;
 draw();
 
 </script>

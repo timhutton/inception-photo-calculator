@@ -107,14 +107,17 @@ function length2(a,b) {
 
 function intersectBezier(pts,a,b) {
     // test each line segment in the curve, keep the intersection nearest a
-    // TODO
-    return b;
-    /*ctx.moveTo(pts[0][0],pts[0][1]);
-    for(var t=0;t<1;t+=0.001) {
-        var p = getBezierPoint(pts,t);
-        ctx.lineTo(p[0],p[1]);
+    var ray = { p1:a, p2:b };
+    var c = pts[0];
+    for(var t=0.01;t<1;t+=0.01) {
+        var d = getBezierPoint(pts,t);
+        var line = { p1:c, p2:d };
+        var result = lineSegmentsIntersection(ray, line);
+        if( result.test ) {
+            return result;
+        }
     }
-    ctx.lineTo(pts[npts-1][0],pts[npts-1][1]);*/
+    return { test: false };
 }
 
 function drawCameraBody(c) {
@@ -141,7 +144,13 @@ function drawBaseCamera(c) {
     for(var i=0;i<nr;i++) {
         var h = i * c.hh * 2 / (nr-1) - c.hh;
         var p = add(c,mul(sub(mul(c.vx,c.f),mul(c.vy,h)),100));
-        var ip = intersectBezier(pts,c,p);
+        var result = intersectBezier(pts,c,p);
+        var ip = {};
+        if( result.test ) {
+            ip = result.point;
+        } else {
+            ip = p;
+        }
         ctx.moveTo(c.x,c.y);
         ctx.lineTo(ip.x,ip.y);
     }
@@ -190,16 +199,15 @@ function draw() {
 
 var ctx = document.getElementById("myCanvas").getContext("2d");
 var npts = 8;
-var base_pts = [];
 var pts = [];
+var base_pts = [];
 for(var i=0;i<npts;i++) {
-    base_pts.push( { x:50+i*700/(npts-1), y:500 } );
     pts.push(      { x:50+i*700/(npts-1), y:300 } );
+    base_pts.push( { x:50+i*700/(npts-1), y:500 } );
 }
 pts[0] = { x:50, y:50 };
 var dot_radius = 2;
 var handle_radius = 6;
-// we define the camera on the distorted landscape
 var camera = { x:750, y:250, vx:{x:-1,y:0}, vy:{x:0,y:1}, f:45, hh:20 };
 var epsilon = 1E-6;
 draw();

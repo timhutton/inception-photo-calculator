@@ -23,8 +23,24 @@ function mul(p,f) {
     return { x:p.x*f, y:p.y*f };
 }
 
+function dot(a,b) {
+    return a.x*b.x + a.y*b.y;
+}
+
+function norm(a) {
+    return Math.sqrt(a.x*a.x + a.y*a.y);
+}
+
+function angle(a,b) {
+    return Math.acos( dot(a,b) / ( norm(a) * norm(b) ) );
+}
+
 function lerp(a,b,t) {
     return add(mul(a,1-t),mul(b,t));
+}
+
+function rot90(v) {
+    return { x:-v.y, y:-x };
 }
 
 function getBezierPoint(pts,t) {
@@ -66,22 +82,6 @@ function drawBezier(pts) {
     }
 }
 
-function lineSegmentsIntersection(s1,s2) {
-    var cr = lineWithLineIntersection( s1.p1, sub( s1.p2, s1.p1 ), s2.p1, sub( s2.p2, s2.p1 ) );
-    //if( !cr.test || cr.u1 < 0 || cr.u1 > 1 || cr.u2 < 0 || cr.u2 > 1 ) return { test:false };
-    if( !cr.test || cr.u1 < -epsilon || cr.u1 > 1+epsilon || cr.u2 < -epsilon || cr.u2 > 1+epsilon ) return { test:false };
-    var p = lerp( s1.p1, s1.p2, cr.u1 );
-    return { test:true, point:p };
-}
-
-function lineSegmentWithLineIntersection( s, p2, v2 ) {
-    var cr = lineWithLineIntersection( s.p1, sub( s.p2, s.p1 ), p2, v2 );
-    //if( !cr.test || cr.u1 < 0 || cr.u1 > 1 ) return { test:false };
-    if( !cr.test || cr.u1 < -epsilon || cr.u1 > 1+epsilon ) return { test:false };
-    var p = lerp( s.p1, s.p2, cr.u1 );
-    return { test:true, point:p };
-}
-
 function lineWithLineIntersection( u0, v0, u1, v1 ) {
     // http://stackoverflow.com/a/4977569/126823
     var x00 = u0.x;
@@ -101,37 +101,33 @@ function lineWithLineIntersection( u0, v0, u1, v1 ) {
     return { test:true, u1:t, u2:s };
 }
 
-function length2(a,b) {
-    return (a.x-b.x)**2 + (a.y-b.y)**2;
+function lineSegmentsIntersection(s1,s2) {
+    var cr = lineWithLineIntersection( s1.p1, sub( s1.p2, s1.p1 ), s2.p1, sub( s2.p2, s2.p1 ) );
+    if( !cr.test || cr.u1 < -epsilon || cr.u1 > 1+epsilon || cr.u2 < -epsilon || cr.u2 > 1+epsilon ) return { test:false };
+    var p = lerp( s1.p1, s1.p2, cr.u1 );
+    return { test:true, point:p, u1:cr.u1, u2:cr.u2 };
 }
 
 function intersectBezier(pts,a,b) {
     // test each line segment in the curve, keep the intersection nearest a
     var ray = { p1:a, p2:b };
     var c = pts[0];
-    for(var t=0.01;t<1;t+=0.01) {
-        var d = getBezierPoint(pts,t);
+    var d = c;
+    var inc = 0.01;
+    for(var t=inc;t<1;t+=inc) {
+        d = getBezierPoint(pts,t);
         var line = { p1:c, p2:d };
         var result = lineSegmentsIntersection(ray, line);
         if( result.test ) {
+            result.segment = line;
+            result.t = t + result.u2*inc;
+            result.theta = angle(sub(ray.p2,ray.p1),sub(line.p2,line.p1));
+            result.d = norm(sub(a,result.point));
             return result;
         }
+        c = d;
     }
     return { test: false };
-}
-
-function drawCameraBody(c) {
-    // camera body: triangle
-    ctx.strokeStyle = "rgba(0,0,0,0.9)";
-    ctx.beginPath();
-    ctx.moveTo(c.x,c.y);
-    var p1 = add(add(c,mul(c.vx,c.f)),mul(c.vy,c.hh));
-    var p2 = sub(add(c,mul(c.vx,c.f)),mul(c.vy,c.hh));
-    ctx.lineTo(p1.x,p1.y);
-    ctx.lineTo(p2.x,p2.y);
-    ctx.lineTo(c.x,c.y);
-    ctx.stroke();
-    drawDot(c);
 }
 
 function drawBaseCamera(c) {
@@ -147,7 +143,11 @@ function drawBaseCamera(c) {
         var result = intersectBezier(pts,c,p);
         var ip = {};
         if( result.test ) {
-            ip = result.point;
+            ip = getBezierPoint(pts,result.t);//result.point;
+            // DEBUG:
+            var bp = getBezierPoint(base_pts,result.t);
+            ctx.moveTo(c.x,c.y);
+            ctx.lineTo(bp.x,bp.y);
         } else {
             ip = p;
         }
@@ -155,6 +155,20 @@ function drawBaseCamera(c) {
         ctx.lineTo(ip.x,ip.y);
     }
     ctx.stroke();
+}
+
+function drawCameraBody(c) {
+    // camera body: triangle
+    ctx.strokeStyle = "rgba(0,0,0,0.9)";
+    ctx.beginPath();
+    ctx.moveTo(c.x,c.y);
+    var p1 = add(add(c,mul(c.vx,c.f)),mul(c.vy,c.hh));
+    var p2 = sub(add(c,mul(c.vx,c.f)),mul(c.vy,c.hh));
+    ctx.lineTo(p1.x,p1.y);
+    ctx.lineTo(p2.x,p2.y);
+    ctx.lineTo(c.x,c.y);
+    ctx.stroke();
+    drawDot(c);
 }
 
 function drawDot(p) {
@@ -208,7 +222,7 @@ for(var i=0;i<npts;i++) {
 pts[0] = { x:50, y:50 };
 var dot_radius = 2;
 var handle_radius = 6;
-var camera = { x:750, y:250, vx:{x:-1,y:0}, vy:{x:0,y:1}, f:45, hh:20 };
+var camera = { x:645, y:250, vx:{x:-1,y:0}, vy:{x:0,y:1}, f:45, hh:15 };
 var epsilon = 1E-6;
 draw();
 

@@ -120,7 +120,7 @@ function intersectBezier(pts,a,b) {
         var result = lineSegmentsIntersection(ray, line);
         if( result.test ) {
             result.segment = line;
-            result.t = t + result.u2*inc;
+            result.t = t - inc + result.u2*inc;
             result.theta = angle(sub(ray.p2,ray.p1),sub(line.p2,line.p1));
             result.d = norm(sub(a,result.point));
             return result;

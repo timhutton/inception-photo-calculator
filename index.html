@@ -32,7 +32,7 @@ function dot(a,b) {
 }
 
 function norm(a) {
-    return Math.sqrt(a.x*a.x + a.y*a.y);
+    return Math.sqrt(dot(a,a));
 }
 
 function normalize(a) {
@@ -53,6 +53,11 @@ function rot90(v) {
 
 function rot270(v) {
     return { x:v.y, y:-v.x };
+}
+
+function rot(v,theta) {
+    return { x: v.x*Math.cos(theta) - v.y*Math.sin(theta),
+             y: v.x*Math.sin(theta) + v.y*Math.cos(theta) };
 }
 
 function getBezierPoint(pts,t) {
@@ -153,20 +158,23 @@ function drawBaseCamera(c) {
         var ip = {};
         if( result.test ) {
             ip = result.point;
+            drawLine(c,ip,"rgba(0,0,0,0.2)");
             // draw the same ray on the base landscape, with its camera
             var bp = getBezierPoint(base_pts,result.t);
             var bp2 = getBezierPoint(base_pts,result.t + 0.01);
             var t = normalize(sub(bp2,bp));
             var n = rot270(t);
-            var tc = add(mul(t,Math.cos(result.theta)),mul(n,Math.sin(result.theta)))
+            var tc = add(mul(t,Math.cos(result.theta)),mul(n,Math.sin(result.theta)));
             var cp2 = add(bp,mul(tc,result.d));
             drawLine(bp,cp2,"rgba(0,0,0,0.2)");
-            var cam2 = { x:cp2.x, y:cp2.y, vx:mul(tc,-1), vy:rot90(tc), f:c.f, hh:c.hh };
+            var angle_diff = angle(sub(p,c),tc);
+            var vx = rot(c.vx, Math.PI + angle_diff);
+            var cam2 = { x:cp2.x, y:cp2.y, vx:vx, vy:rot90(vx), f:c.f, hh:c.hh };
             drawCameraBody(cam2);
         } else {
-            ip = p;
+            // ray didnt hit anything
+            drawLine(c,p,"rgba(0,0,0,0.2)");
         }
-        drawLine(c,ip,"rgba(0,0,0,0.2)");
     }
 }
 
@@ -190,6 +198,7 @@ function drawCameraBody(c) {
     ctx.lineTo(c.x,c.y);
     ctx.stroke();
     drawDot(c);
+    drawDot(p1);
 }
 
 function drawDot(p) {
@@ -240,11 +249,11 @@ for(var i=0;i<npts;i++) {
     pts.push(      { x:50+i*700/(npts-1), y:300 } );
     base_pts.push( { x:50+i*700/(npts-1), y:580 } );
 }
-pts[0] = { x:450, y:50 };
+pts[0] = { x:250, y:50 };
 pts[1] = { x:150, y:200 };
 var dot_radius = 2;
 var handle_radius = 6;
-var camera = { x:690, y:250, vx:{x:-1,y:0}, vy:{x:0,y:1}, f:45, hh:15 };
+var camera = { x:500, y:250, vx:{x:-1,y:0}, vy:{x:0,y:-1}, f:45, hh:20 };
 var epsilon = 1E-6;
 draw();
 

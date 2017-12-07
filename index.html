@@ -126,7 +126,7 @@ function lineSegmentsIntersection(s1,s2) {
 }
 
 function intersectBezier(pts,a,b) {
-    // test each line segment in the curve, keep the intersection nearest a
+    // test each line segment in the curve, returning the first intersection we find
     var ray = { p1:a, p2:b };
     var c = pts[0];
     var d = c;
@@ -236,9 +236,9 @@ function draw() {
     drawBaseCamera(camera);
 
     // draw caption
-    ctx.font="18px Verdana";
+    /*ctx.font="18px Verdana";
     ctx.fillStyle = "rgba(0,0,0,0.6)";
-    ctx.fillText("Drag the handles to change the landscape", 10, 620);
+    ctx.fillText("Drag the handles to change the landscape", 10, 620);*/
 }
 
 var ctx = document.getElementById("myCanvas").getContext("2d");

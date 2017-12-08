@@ -257,8 +257,8 @@ function draw() {
 
 document.onmousemove = function(e) {
     var rect = canvas.getBoundingClientRect();
-    var x = event.clientX - rect.left;
-    var y = event.clientY - rect.top;
+    var x = e.clientX - rect.left;
+    var y = e.clientY - rect.top;
     if( is_dragging ) {
         handles[i_handle].x = x;
         handles[i_handle].y = y;
